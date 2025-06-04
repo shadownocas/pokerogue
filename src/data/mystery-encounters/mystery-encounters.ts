@@ -11,6 +11,7 @@ import { ShadyVitaminDealerEncounter } from "./encounters/shady-vitamin-dealer-e
 import { SlumberingSnorlaxEncounter } from "./encounters/slumbering-snorlax-encounter";
 import { TrainingSessionEncounter } from "./encounters/training-session-encounter";
 import type MysteryEncounter from "./mystery-encounter";
+import { StrayPokemonEncounter } from "./encounters/stray-pokemon-encounter";
 import { SafariZoneEncounter } from "#app/data/mystery-encounters/encounters/safari-zone-encounter";
 import { FieryFalloutEncounter } from "#app/data/mystery-encounters/encounters/fiery-fallout-encounter";
 import { TheStrongStuffEncounter } from "#app/data/mystery-encounters/encounters/the-strong-stuff-encounter";
@@ -194,7 +195,7 @@ export const mysteryEncountersByBiome = new Map<BiomeId, MysteryEncounterType[]>
   [BiomeId.GRASS, [MysteryEncounterType.SLUMBERING_SNORLAX, MysteryEncounterType.ABSOLUTE_AVARICE]],
   [BiomeId.TALL_GRASS, [MysteryEncounterType.SLUMBERING_SNORLAX, MysteryEncounterType.ABSOLUTE_AVARICE]],
   [BiomeId.METROPOLIS, []],
-  [BiomeId.FOREST, [MysteryEncounterType.SAFARI_ZONE, MysteryEncounterType.ABSOLUTE_AVARICE]],
+  [BiomeId.FOREST, [MysteryEncounterType.SAFARI_ZONE, MysteryEncounterType.ABSOLUTE_AVARICE, MysteryEncounterType.STRAY_POKEMON]],
   [BiomeId.SEA, [MysteryEncounterType.LOST_AT_SEA]],
   [BiomeId.SWAMP, [MysteryEncounterType.SAFARI_ZONE]],
   [BiomeId.BEACH, []],
@@ -231,6 +232,7 @@ export function initMysteryEncounters() {
   allMysteryEncounters[MysteryEncounterType.DARK_DEAL] = DarkDealEncounter;
   allMysteryEncounters[MysteryEncounterType.FIGHT_OR_FLIGHT] = FightOrFlightEncounter;
   allMysteryEncounters[MysteryEncounterType.TRAINING_SESSION] = TrainingSessionEncounter;
+  allMysteryEncounters[MysteryEncounterType.STRAY_POKEMON] = StrayPokemonEncounter;
   allMysteryEncounters[MysteryEncounterType.SLUMBERING_SNORLAX] = SlumberingSnorlaxEncounter;
   allMysteryEncounters[MysteryEncounterType.DEPARTMENT_STORE_SALE] = DepartmentStoreSaleEncounter;
   allMysteryEncounters[MysteryEncounterType.SHADY_VITAMIN_DEALER] = ShadyVitaminDealerEncounter;
