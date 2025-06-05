@@ -38,13 +38,9 @@ import { PERMANENT_STATS, Stat } from "#enums/stat";
 import { CustomPokemonData } from "#app/data/custom-pokemon-data";
 import { PokeballType } from "#enums/pokeball";
 import { TrainerSlot } from "#enums/trainer-slot";
-import i18next from "i18next";
 
 /* the i18n namespace for the encounter */
 const namespace = "mysteryEncounters/strayPokemon";
-let originalParty: PlayerPokemon[] = [];
-let heldItems: PokemonHeldItemModifier[][] = [];
-let fastestPokemon;
 
 /**
  * Stray Pokemon encounter.
@@ -56,6 +52,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
 )
   .withEncounterTier(MysteryEncounterTier.GREAT)
   .withSceneWaveRangeRequirement(30, 90)
+  .withFleeAllowed(false)
   .withIntroSpriteConfigs([
     {
       spriteKey: Species.CHARMANDER.toString(),
@@ -67,19 +64,15 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       y: 5,
     },
   ])
-
   .withIntroDialogue([
     {
       text: `${namespace}:intro`,
     },
   ])
-
-  .withFleeAllowed(false) //not one of the options
   .withOnInit(() => {
     const encounter = globalScene.currentBattle.mysteryEncounter!;
-    getFastestPokemon();
 
-    // Calculate boss mon
+    // calculate boss mon
     const bossSpecies = getPokemonSpecies(Species.SEISMITOAD);
     const pokemonConfig: EnemyPokemonConfig = {
       species: bossSpecies,
@@ -88,14 +81,20 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       moveSet: [Moves.WATERFALL, Moves.EARTHQUAKE, Moves.DRAIN_PUNCH, Moves.ICE_PUNCH],
       abilityIndex: 0,
       nature: Nature.ADAMANT,
-      customPokemonData: new CustomPokemonData({ spriteScale: 1.25 }), //is also biggger
+      customPokemonData: new CustomPokemonData({ spriteScale: 1.25 }),
     };
     const config: EnemyPartyConfig = {
-      levelAdditiveModifier: 0.000001, //seismitoad is stronger
+      levelAdditiveModifier: 0.5,
       pokemonConfigs: [pokemonConfig],
     };
     encounter.enemyPartyConfigs = [config];
 
+    // defined variables used globally
+    encounter.misc = {
+      fastestPokemon: getFastestPokemon(),
+      heldItems: [] as PokemonHeldItemModifier[][],
+      originalParty: [] as PlayerPokemon[],
+    };
     encounter.setDialogueToken("seismitoadName", getPokemonSpecies(Species.SEISMITOAD).getName());
     encounter.setDialogueToken("charmanderName", getPokemonSpecies(Species.CHARMANDER).getName());
     return true;
@@ -105,6 +104,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
   .withDescription(`${namespace}:description`)
   .withQuery(`${namespace}:query`)
   .withSimpleOption(
+    // straightforward battle
     {
       buttonLabel: `${namespace}:option.1.label`,
       buttonTooltip: `${namespace}:option.1.tooltip`,
@@ -115,10 +115,8 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       ],
     },
     async () => {
-      //Pick battle
       const encounter = globalScene.currentBattle.mysteryEncounter!;
-
-      setEncounterRewards({ fillRemaining: true }, undefined, async () => await doPostEncounterCleanup());
+      setEncounterRewards({ fillRemaining: true }, undefined, async () => doPostEncounterCleanup());
       encounter.startOfBattleEffects.push({
         sourceBattlerIndex: BattlerIndex.ENEMY,
         targets: [BattlerIndex.ENEMY],
@@ -129,6 +127,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
     },
   )
   .withOption(
+    // use protecting move
     MysteryEncounterOptionBuilder.newOptionWithMode(MysteryEncounterOptionMode.DISABLED_OR_SPECIAL)
       .withPrimaryPokemonRequirement(new MoveRequirement(PROTECTING_MOVES, true))
       .withDialogue({
@@ -143,15 +142,15 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       })
       .withOptionPhase(async () => {
         const instance = globalScene.currentBattle.mysteryEncounter!;
-        // Seismitoad exp to pokemon who protected Charmander
         setEncounterExp(instance.primaryPokemon!.id, getPokemonSpecies(Species.SEISMITOAD).baseExp);
-
         await offerCharmanderToJoin();
+        // no battles in this option
         leaveEncounterWithoutBattle();
       })
       .build(),
   )
   .withOption(
+    // use distracting move
     MysteryEncounterOptionBuilder.newOptionWithMode(MysteryEncounterOptionMode.DISABLED_OR_SPECIAL)
       .withPrimaryPokemonRequirement(new MoveRequirement(DISTRACTION_MOVES, true))
       .withDialogue({
@@ -165,30 +164,23 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         ],
       })
       .withOptionPhase(async () => {
+        setEncounterRewards({ fillRemaining: true }, undefined, () => doPostEncounterCleanup());
         const encounter = globalScene.currentBattle.mysteryEncounter!;
-        encounter.startOfBattleEffects.push({
-          sourceBattlerIndex: BattlerIndex.ENEMY,
-          targets: [BattlerIndex.ENEMY],
-          move: new PokemonMove(Moves.HYDRO_PUMP),
-          ignorePp: true,
-        });
         const statChangesForBattle: (Stat.ATK | Stat.DEF | Stat.SPATK | Stat.SPDEF | Stat.SPD | Stat.ACC | Stat.EVA)[] =
           [Stat.ATK, Stat.DEF, Stat.SPATK, Stat.SPDEF, Stat.SPD];
 
         const config = globalScene.currentBattle.mysteryEncounter!.enemyPartyConfigs[0];
         config.pokemonConfigs![0].tags = [BattlerTagType.MYSTERY_ENCOUNTER_POST_SUMMON];
         config.pokemonConfigs![0].mysteryEncounterBattleEffects = (pokemon: Pokemon) => {
+          // decrease enemy stats by 1
           globalScene.unshiftPhase(new StatStageChangePhase(pokemon.getBattlerIndex(), true, statChangesForBattle, -1));
         };
-
-        // Offer Charmander
-        await offerCharmanderToJoin();
         await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
       })
       .build(),
   )
-
   .withOption(
+    // send fastest pokemon off to help
     MysteryEncounterOptionBuilder.newOptionWithMode(MysteryEncounterOptionMode.DISABLED_OR_SPECIAL)
       .withDialogue({
         buttonLabel: `${namespace}:option.4.label`,
@@ -201,7 +193,6 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       })
       .withOptionPhase(async () => {
         setEncounterRewards({ fillRemaining: true }, undefined, () => doPostEncounterCleanup(true));
-
         const encounter = globalScene.currentBattle.mysteryEncounter!;
         encounter.startOfBattleEffects.push({
           sourceBattlerIndex: BattlerIndex.ENEMY,
@@ -216,10 +207,11 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         config.pokemonConfigs![0].tags = [BattlerTagType.MYSTERY_ENCOUNTER_POST_SUMMON];
         config.pokemonConfigs![0].mysteryEncounterBattleEffects = (pokemon: Pokemon) => {
           queueEncounterMessage(`${namespace}:option.4.boss_enraged`);
+          // enemy stats increased by one
           globalScene.unshiftPhase(new StatStageChangePhase(pokemon.getBattlerIndex(), true, statChangesForBattle, 1));
         };
-
-        removePokemonFromPartyAndStoreHeldItems(fastestPokemon);
+        // removes fastest pokemon from party
+        removePokemonFromPartyAndStoreHeldItems(encounter.misc.fastestPokemon);
         await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
       })
       .build(),
@@ -227,17 +219,20 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
   .build();
 
 function removePokemonFromPartyAndStoreHeldItems(chosenPokemon: PlayerPokemon) {
+  // calculates removes fastest pokemon from party
   const party = globalScene.getPlayerParty();
-  originalParty = party.filter(p => p === chosenPokemon);
-  heldItems = originalParty.map(p => p.getHeldItems());
+  const encounter = globalScene.currentBattle.mysteryEncounter!;
+  encounter.misc.originalParty = party.filter(p => p === chosenPokemon);
+  encounter.misc.heldItems = encounter.misc.originalParty.map(p => p.getHeldItems());
   const updatedParty = party.filter(p => p !== chosenPokemon);
   globalScene["party"] = updatedParty;
 }
 
 function restorePartyAndHeldItems() {
-  // Restore original party
-  globalScene.getPlayerParty().push(...originalParty);
-  for (const pokemonHeldItemsList of heldItems) {
+  // restore original party
+  const encounter = globalScene.currentBattle.mysteryEncounter!;
+  globalScene.getPlayerParty().push(...encounter.misc.originalParty);
+  for (const pokemonHeldItemsList of encounter.misc.heldItems) {
     for (const heldItem of pokemonHeldItemsList) {
       globalScene.addModifier(heldItem, true, false, false, true);
     }
@@ -246,15 +241,17 @@ function restorePartyAndHeldItems() {
 }
 
 async function doPostEncounterCleanup(charcoal = false) {
+  // reset needed changes
   restorePartyAndHeldItems();
   await offerCharmanderToJoin();
-  globalScene.queueMessage(i18next.t("You have caught a Charmander!"));
+  queueEncounterMessage(`${namespace}:got_charmander`);
   if (charcoal) {
     giveLeadPokemonAttackTypeBoostItem();
   }
 }
 
 async function offerCharmanderToJoin() {
+  // add pokemon to party
   const CharmanderData = new EnemyPokemon(getPokemonSpecies(Species.CHARMANDER), 5, TrainerSlot.NONE, false, true);
   CharmanderData.moveset = [
     new PokemonMove(Moves.FLAMETHROWER),
@@ -267,10 +264,10 @@ async function offerCharmanderToJoin() {
 }
 
 function giveLeadPokemonAttackTypeBoostItem() {
-  // Give first party pokemon attack type boost item for free at end of battle
+  // give first party pokemon attack type boost item for free at end of battle
   const leadPokemon = globalScene.getPlayerParty()?.[0];
   if (leadPokemon) {
-    // Generate type booster held item: charcoal
+    // generate type booster held item: charcoal
     const boosterModifierType = generateModifierType(modifierTypes.ATTACK_TYPE_BOOSTER, [
       PokemonType.FIRE,
     ]) as AttackTypeBoosterModifierType;
@@ -285,7 +282,9 @@ function giveLeadPokemonAttackTypeBoostItem() {
 }
 
 function getFastestPokemon() {
-  fastestPokemon = getHighestStatPlayerPokemon(PERMANENT_STATS[Stat.SPD], true, false);
+  // finds and returns fastest player pokemon
+  const fastestPokemon = getHighestStatPlayerPokemon(PERMANENT_STATS[Stat.SPD], true, false);
   const encounter = globalScene.currentBattle.mysteryEncounter!;
   encounter.setDialogueToken("fastestPokemon", fastestPokemon.getName());
+  return fastestPokemon;
 }

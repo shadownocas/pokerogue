@@ -190,6 +190,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       expect(mysteryEncounterPhase.handleOptionSelect).not.toHaveBeenCalled();
       expect(mysteryEncounterPhase.continueEncounter).not.toHaveBeenCalled();
     });
+
     it("should be selectable when requirements met and should leave encounter without battle", async () => {
       const leaveEncounterWithoutBattleSpy = vi.spyOn(EncounterPhaseUtils, "leaveEncounterWithoutBattle");
 
@@ -209,6 +210,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       expect(mysteryEncounterPhase.handleOptionSelect).toBeCalled();
     });
   });
+
   describe("Option 3 - Enter", () => {
     it("should have the correct properties", () => {
       const option = StrayPokemonEncounter.options[2];
@@ -259,6 +261,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       await runMysteryEncounterToEnd(game, 3, undefined, true);
     });
   });
+  
   describe("Option 4 - Enter", () => {
     it("should have the correct properties", () => {
       const option = StrayPokemonEncounter.options[3];
