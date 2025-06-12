@@ -4,6 +4,7 @@ import { catchPokemon } from "#app/data/mystery-encounters/utils/encounter-pokem
 import { PokeballType } from "#enums/pokeball";
 
 export class PokemonRewardPhase extends BattlePhase {
+  public readonly phaseName = "PokemonRewardPhase";
   private pokemonReward: EnemyPokemon[];
 
   constructor(pokemonReward: EnemyPokemon[]) {

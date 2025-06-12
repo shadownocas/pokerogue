@@ -1,7 +1,7 @@
 import * as MysteryEncounters from "#app/data/mystery-encounters/mystery-encounters";
-import { Biome } from "#enums/biome";
+import { BiomeId } from "#enums/biome-id";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
-import { Species } from "#enums/species";
+import { SpeciesId } from "#enums/species-id";
 import GameManager from "#test/testUtils/gameManager";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -18,13 +18,13 @@ import * as EncounterPhaseUtils from "#app/data/mystery-encounters/utils/encount
 import { StrayPokemonEncounter } from "#app/data/mystery-encounters/encounters/stray-pokemon-encounter";
 import { CommandPhase } from "#app/phases/command-phase";
 import { getPokemonSpecies } from "#app/data/pokemon-species";
-import { Moves } from "#enums/moves";
+import { MoveId } from "#enums/move-id";
 import { MysteryEncounterMode } from "#enums/mystery-encounter-mode";
-import { PokemonMove } from "#app/field/pokemon";
+import { PokemonMove } from "#app/data/moves/pokemon-move";
 
 const namespace = "mysteryEncounters/strayPokemon";
-const defaultParty = [Species.LAPRAS, Species.GENGAR, Species.ABRA];
-const defaultBiome = Biome.FOREST;
+const defaultParty = [SpeciesId.LAPRAS, SpeciesId.GENGAR, SpeciesId.ABRA];
+const defaultBiome = BiomeId.FOREST;
 const defaultWave = 33;
 
 describe("Stray Pokemon - Mystery Encounter", () => {
@@ -45,9 +45,9 @@ describe("Stray Pokemon - Mystery Encounter", () => {
     game.override.disableTrainerWaves();
 
     vi.spyOn(MysteryEncounters, "mysteryEncountersByBiome", "get").mockReturnValue(
-      new Map<Biome, MysteryEncounterType[]>([
-        [Biome.FOREST, [MysteryEncounterType.STRAY_POKEMON]],
-        [Biome.VOLCANO, [MysteryEncounterType.FIGHT_OR_FLIGHT]],
+      new Map<BiomeId, MysteryEncounterType[]>([
+        [BiomeId.FOREST, [MysteryEncounterType.STRAY_POKEMON]],
+        [BiomeId.VOLCANO, [MysteryEncounterType.FIGHT_OR_FLIGHT]],
       ]),
     );
   });
@@ -73,7 +73,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
 
   it("should not spawn outside of the forest biome", async () => {
     game.override.mysteryEncounterTier(MysteryEncounterTier.GREAT);
-    game.override.startingBiome(Biome.VOLCANO);
+    game.override.startingBiome(BiomeId.VOLCANO);
     await game.runToMysteryEncounter();
 
     expect(scene.currentBattle?.mysteryEncounter?.encounterType).not.toBe(MysteryEncounterType.STRAY_POKEMON);
@@ -98,9 +98,9 @@ describe("Stray Pokemon - Mystery Encounter", () => {
     expect(config.pokemonConfigs).toBeDefined();
     expect(config.pokemonConfigs![0]).toEqual(
       expect.objectContaining({
-        species: getPokemonSpecies(Species.SEISMITOAD),
+        species: getPokemonSpecies(SpeciesId.SEISMITOAD),
         isBoss: true,
-        moveSet: [Moves.WATERFALL, Moves.EARTHQUAKE, Moves.DRAIN_PUNCH, Moves.ICE_PUNCH],
+        moveSet: [MoveId.WATERFALL, MoveId.EARTHQUAKE, MoveId.DRAIN_PUNCH, MoveId.ICE_PUNCH],
       }),
     );
   });
@@ -148,7 +148,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       expect(successfullyLoaded).toBe(true);
 
       // Check usual battle stuff
-      expect(scene.getCurrentPhase()?.constructor.name).toBe(CommandPhase.name);
+      expect(scene.phaseManager.getCurrentPhase()?.constructor.name).toBe(CommandPhase.name);
       expect(scene.currentBattle.mysteryEncounter?.encounterMode).toBe(MysteryEncounterMode.BOSS_BATTLE);
     });
   });
@@ -176,7 +176,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       scene.getPlayerParty().forEach(p => (p.moveset = []));
       await game.phaseInterceptor.to(MysteryEncounterPhase, false);
 
-      const encounterPhase = scene.getCurrentPhase();
+      const encounterPhase = scene.phaseManager.getCurrentPhase();
       expect(encounterPhase?.constructor.name).toBe(MysteryEncounterPhase.name);
       const mysteryEncounterPhase = encounterPhase as MysteryEncounterPhase;
       vi.spyOn(mysteryEncounterPhase, "continueEncounter");
@@ -185,7 +185,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
 
       await runSelectMysteryEncounterOption(game, 2);
 
-      expect(scene.getCurrentPhase()?.constructor.name).toBe(MysteryEncounterPhase.name);
+      expect(scene.phaseManager.getCurrentPhase()?.constructor.name).toBe(MysteryEncounterPhase.name);
       expect(scene.ui.playError).not.toHaveBeenCalled(); // No error sfx, option is disabled
       expect(mysteryEncounterPhase.handleOptionSelect).not.toHaveBeenCalled();
       expect(mysteryEncounterPhase.continueEncounter).not.toHaveBeenCalled();
@@ -197,12 +197,12 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       await game.runToMysteryEncounter(MysteryEncounterType.STRAY_POKEMON, defaultParty);
       await game.phaseInterceptor.to(MysteryEncounterPhase, false);
 
-      const encounterPhase = scene.getCurrentPhase();
+      const encounterPhase = scene.phaseManager.getCurrentPhase();
       expect(encounterPhase?.constructor.name).toBe(MysteryEncounterPhase.name);
       const mysteryEncounterPhase = encounterPhase as MysteryEncounterPhase;
       vi.spyOn(mysteryEncounterPhase, "handleOptionSelect");
 
-      scene.getPlayerParty()[0].moveset = [new PokemonMove(Moves.PROTECT)];
+      scene.getPlayerParty()[0].moveset = [new PokemonMove(MoveId.PROTECT)];
 
       await runMysteryEncounterToEnd(game, 2);
 
@@ -235,7 +235,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       scene.getPlayerParty().forEach(p => (p.moveset = []));
       await game.phaseInterceptor.to(MysteryEncounterPhase, false);
 
-      const encounterPhase = scene.getCurrentPhase();
+      const encounterPhase = scene.phaseManager.getCurrentPhase();
       expect(encounterPhase?.constructor.name).toBe(MysteryEncounterPhase.name);
       const mysteryEncounterPhase = encounterPhase as MysteryEncounterPhase;
       vi.spyOn(mysteryEncounterPhase, "continueEncounter");
@@ -244,7 +244,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
 
       await runSelectMysteryEncounterOption(game, 3);
 
-      expect(scene.getCurrentPhase()?.constructor.name).toBe(MysteryEncounterPhase.name);
+      expect(scene.phaseManager.getCurrentPhase()?.constructor.name).toBe(MysteryEncounterPhase.name);
       expect(scene.ui.playError).not.toHaveBeenCalled(); // No error sfx, option is disabled
       expect(mysteryEncounterPhase.handleOptionSelect).not.toHaveBeenCalled();
       expect(mysteryEncounterPhase.continueEncounter).not.toHaveBeenCalled();
@@ -254,14 +254,14 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       await game.runToMysteryEncounter(MysteryEncounterType.STRAY_POKEMON, defaultParty);
 
       await game.phaseInterceptor.to(MysteryEncounterPhase, false);
-      const encounterPhase = scene.getCurrentPhase();
+      const encounterPhase = scene.phaseManager.getCurrentPhase();
       expect(encounterPhase?.constructor.name).toBe(MysteryEncounterPhase.name);
       // Mock moveset
-      scene.getPlayerParty()[0].moveset = [new PokemonMove(Moves.FOLLOW_ME)];
+      scene.getPlayerParty()[0].moveset = [new PokemonMove(MoveId.FOLLOW_ME)];
       await runMysteryEncounterToEnd(game, 3, undefined, true);
     });
   });
-  
+
   describe("Option 4 - Enter", () => {
     it("should have the correct properties", () => {
       const option = StrayPokemonEncounter.options[3];
@@ -288,7 +288,7 @@ describe("Stray Pokemon - Mystery Encounter", () => {
       await runMysteryEncounterToEnd(game, 4, undefined, true);
 
       const enemyField = scene.getEnemyField();
-      expect(scene.getCurrentPhase()?.constructor.name).toBe(CommandPhase.name);
+      expect(scene.phaseManager.getCurrentPhase()?.constructor.name).toBe(CommandPhase.name);
       expect(enemyField.length).toBe(1);
       const partyCountAfter = scene.getPlayerParty().length;
       expect(partyCountBefore - 1).toBe(partyCountAfter);

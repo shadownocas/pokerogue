@@ -1,5 +1,5 @@
 import { DISTRACTION_MOVES, PROTECTING_MOVES } from "#app/data/mystery-encounters/requirements/requirement-groups";
-import { modifierTypes } from "#app/modifier/modifier-type";
+import { modifierTypes } from "#app/data/data-lists";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { MysteryEncounterOptionMode } from "#enums/mystery-encounter-option-mode";
 import { MysteryEncounterOptionBuilder } from "#app/data/mystery-encounters/mystery-encounter-option";
@@ -8,8 +8,7 @@ import type { AttackTypeBoosterModifierType } from "#app/modifier/modifier-type"
 import type { PokemonHeldItemModifier } from "#app/modifier/modifier";
 import { getPokemonSpecies } from "#app/data/pokemon-species";
 import type Pokemon from "#app/field/pokemon";
-import { Species } from "#enums/species";
-import { StatStageChangePhase } from "#app/phases/stat-stage-change-phase";
+import { SpeciesId } from "#enums/species-id";
 import { BattlerTagType } from "#enums/battler-tag-type";
 import { globalScene } from "#app/global-scene";
 import {
@@ -29,11 +28,12 @@ import type { EnemyPartyConfig, EnemyPokemonConfig } from "../utils/encounter-ph
 import type MysteryEncounter from "#app/data/mystery-encounters/mystery-encounter";
 import { MysteryEncounterBuilder } from "#app/data/mystery-encounters/mystery-encounter";
 import { MysteryEncounterTier } from "#enums/mystery-encounter-tier";
-import { Moves } from "#enums/moves";
+import { MoveId } from "#enums/move-id";
 import { Nature } from "#enums/nature";
-import { BattlerIndex } from "#app/battle";
+import { BattlerIndex } from "#enums/battler-index";
 import { PokemonType } from "#enums/pokemon-type";
-import { EnemyPokemon, type PlayerPokemon, PokemonMove } from "#app/field/pokemon";
+import { EnemyPokemon, type PlayerPokemon } from "#app/field/pokemon";
+import { PokemonMove } from "#app/data/moves/pokemon-move";
 import { PERMANENT_STATS, Stat } from "#enums/stat";
 import { CustomPokemonData } from "#app/data/custom-pokemon-data";
 import { PokeballType } from "#enums/pokeball";
@@ -55,7 +55,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
   .withFleeAllowed(false)
   .withIntroSpriteConfigs([
     {
-      spriteKey: Species.CHARMANDER.toString(),
+      spriteKey: SpeciesId.CHARMANDER.toString(),
       fileRoot: "pokemon",
       hasShadow: true,
       tint: 0.25,
@@ -73,12 +73,12 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
     const encounter = globalScene.currentBattle.mysteryEncounter!;
 
     // calculate boss mon
-    const bossSpecies = getPokemonSpecies(Species.SEISMITOAD);
+    const bossSpecies = getPokemonSpecies(SpeciesId.SEISMITOAD);
     const pokemonConfig: EnemyPokemonConfig = {
       species: bossSpecies,
       isBoss: true,
       shiny: false,
-      moveSet: [Moves.WATERFALL, Moves.EARTHQUAKE, Moves.DRAIN_PUNCH, Moves.ICE_PUNCH],
+      moveSet: [MoveId.WATERFALL, MoveId.EARTHQUAKE, MoveId.DRAIN_PUNCH, MoveId.ICE_PUNCH],
       abilityIndex: 0,
       nature: Nature.ADAMANT,
       customPokemonData: new CustomPokemonData({ spriteScale: 1.25 }),
@@ -95,8 +95,8 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       heldItems: [] as PokemonHeldItemModifier[][],
       originalParty: [] as PlayerPokemon[],
     };
-    encounter.setDialogueToken("seismitoadName", getPokemonSpecies(Species.SEISMITOAD).getName());
-    encounter.setDialogueToken("charmanderName", getPokemonSpecies(Species.CHARMANDER).getName());
+    encounter.setDialogueToken("seismitoadName", getPokemonSpecies(SpeciesId.SEISMITOAD).getName());
+    encounter.setDialogueToken("charmanderName", getPokemonSpecies(SpeciesId.CHARMANDER).getName());
     return true;
   })
   .setLocalizationKey(`${namespace}`)
@@ -120,7 +120,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       encounter.startOfBattleEffects.push({
         sourceBattlerIndex: BattlerIndex.ENEMY,
         targets: [BattlerIndex.ENEMY],
-        move: new PokemonMove(Moves.AQUA_RING),
+        move: new PokemonMove(MoveId.AQUA_RING),
         ignorePp: true,
       });
       await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
@@ -142,7 +142,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       })
       .withOptionPhase(async () => {
         const instance = globalScene.currentBattle.mysteryEncounter!;
-        setEncounterExp(instance.primaryPokemon!.id, getPokemonSpecies(Species.SEISMITOAD).baseExp);
+        setEncounterExp(instance.primaryPokemon!.id, getPokemonSpecies(SpeciesId.SEISMITOAD).baseExp);
         await catchPokemon(createCharmanderToJoin()[0], null, PokeballType.POKEBALL, false, true);
         // no battles in this option
         leaveEncounterWithoutBattle();
@@ -173,7 +173,13 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         config.pokemonConfigs![0].tags = [BattlerTagType.MYSTERY_ENCOUNTER_POST_SUMMON];
         config.pokemonConfigs![0].mysteryEncounterBattleEffects = (pokemon: Pokemon) => {
           // decrease enemy stats by 1
-          globalScene.unshiftPhase(new StatStageChangePhase(pokemon.getBattlerIndex(), true, statChangesForBattle, -1));
+          globalScene.phaseManager.unshiftNew(
+            "StatStageChangePhase",
+            pokemon.getBattlerIndex(),
+            true,
+            statChangesForBattle,
+            -1,
+          );
         };
         await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
       })
@@ -197,7 +203,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         encounter.startOfBattleEffects.push({
           sourceBattlerIndex: BattlerIndex.ENEMY,
           targets: [BattlerIndex.ENEMY],
-          move: new PokemonMove(Moves.HYDRO_PUMP),
+          move: new PokemonMove(MoveId.HYDRO_PUMP),
           ignorePp: true,
         });
         const statChangesForBattle: (Stat.ATK | Stat.DEF | Stat.SPATK | Stat.SPDEF | Stat.SPD | Stat.ACC | Stat.EVA)[] =
@@ -208,7 +214,13 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         config.pokemonConfigs![0].mysteryEncounterBattleEffects = (pokemon: Pokemon) => {
           queueEncounterMessage(`${namespace}:option.4.boss_enraged`);
           // enemy stats increased by one
-          globalScene.unshiftPhase(new StatStageChangePhase(pokemon.getBattlerIndex(), true, statChangesForBattle, 1));
+          globalScene.phaseManager.unshiftNew(
+            "StatStageChangePhase",
+            pokemon.getBattlerIndex(),
+            true,
+            statChangesForBattle,
+            1,
+          );
         };
         // removes fastest pokemon from party
         removePokemonFromPartyAndStoreHeldItems(encounter.misc.fastestPokemon);
@@ -251,12 +263,12 @@ function doPostEncounterCleanup(charcoal = false) {
 
 function createCharmanderToJoin() {
   // create charmander
-  const charmanderData = new EnemyPokemon(getPokemonSpecies(Species.CHARMANDER), 5, TrainerSlot.NONE, false, true);
+  const charmanderData = new EnemyPokemon(getPokemonSpecies(SpeciesId.CHARMANDER), 5, TrainerSlot.NONE, false, true);
   charmanderData.moveset = [
-    new PokemonMove(Moves.FLAMETHROWER),
-    new PokemonMove(Moves.SLASH),
-    new PokemonMove(Moves.DRAGON_RAGE),
-    new PokemonMove(Moves.ENDURE),
+    new PokemonMove(MoveId.FLAMETHROWER),
+    new PokemonMove(MoveId.SLASH),
+    new PokemonMove(MoveId.DRAGON_RAGE),
+    new PokemonMove(MoveId.ENDURE),
   ];
   charmanderData.passive = true;
   return [charmanderData];
