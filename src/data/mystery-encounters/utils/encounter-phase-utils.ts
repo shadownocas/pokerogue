@@ -46,6 +46,7 @@ import type { IEggOptions } from "#app/data/egg";
 import { Egg } from "#app/data/egg";
 import type { CustomPokemonData } from "#app/data/custom-pokemon-data";
 import type HeldModifierConfig from "#app/@types/held-modifier-config";
+import { PokemonRewardPhase } from "#app/phases/pokemon-reward-phase";
 import type { Variant } from "#app/sprites/variant";
 import { StatusEffect } from "#enums/status-effect";
 import { globalScene } from "#app/global-scene";
@@ -748,10 +749,17 @@ export function setEncounterRewards(
   customShopRewards?: CustomModifierSettings,
   eggRewards?: IEggOptions[],
   preRewardsCallback?: Function,
+  pokemonReward?: EnemyPokemon[],
 ) {
   globalScene.currentBattle.mysteryEncounter!.doEncounterRewards = () => {
     if (preRewardsCallback) {
       preRewardsCallback();
+    }
+
+    if (pokemonReward) {
+      globalScene.phaseManager.unshiftNew("PokemonRewardPhase", pokemonReward);
+    } else {
+      globalScene.phaseManager.tryRemovePhase(p => p.is("PokemonRewardPhase"));
     }
 
     if (customShopRewards) {

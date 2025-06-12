@@ -116,7 +116,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
     },
     async () => {
       const encounter = globalScene.currentBattle.mysteryEncounter!;
-      setEncounterRewards({ fillRemaining: true }, undefined, async () => doPostEncounterCleanup());
+      setEncounterRewards(undefined, undefined, () => doPostEncounterCleanup(), createCharmanderToJoin());
       encounter.startOfBattleEffects.push({
         sourceBattlerIndex: BattlerIndex.ENEMY,
         targets: [BattlerIndex.ENEMY],
@@ -143,7 +143,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
       .withOptionPhase(async () => {
         const instance = globalScene.currentBattle.mysteryEncounter!;
         setEncounterExp(instance.primaryPokemon!.id, getPokemonSpecies(Species.SEISMITOAD).baseExp);
-        await offerCharmanderToJoin();
+        await catchPokemon(createCharmanderToJoin()[0], null, PokeballType.POKEBALL, false, true);
         // no battles in this option
         leaveEncounterWithoutBattle();
       })
@@ -164,7 +164,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         ],
       })
       .withOptionPhase(async () => {
-        setEncounterRewards({ fillRemaining: true }, undefined, () => doPostEncounterCleanup());
+        setEncounterRewards(undefined, undefined, () => doPostEncounterCleanup(), createCharmanderToJoin());
         const encounter = globalScene.currentBattle.mysteryEncounter!;
         const statChangesForBattle: (Stat.ATK | Stat.DEF | Stat.SPATK | Stat.SPDEF | Stat.SPD | Stat.ACC | Stat.EVA)[] =
           [Stat.ATK, Stat.DEF, Stat.SPATK, Stat.SPDEF, Stat.SPD];
@@ -192,7 +192,7 @@ export const StrayPokemonEncounter: MysteryEncounter = MysteryEncounterBuilder.w
         ],
       })
       .withOptionPhase(async () => {
-        setEncounterRewards({ fillRemaining: true }, undefined, () => doPostEncounterCleanup(true));
+        setEncounterRewards(undefined, undefined, () => doPostEncounterCleanup(), createCharmanderToJoin());
         const encounter = globalScene.currentBattle.mysteryEncounter!;
         encounter.startOfBattleEffects.push({
           sourceBattlerIndex: BattlerIndex.ENEMY,
@@ -240,27 +240,26 @@ function restorePartyAndHeldItems() {
   globalScene.updateModifiers(true);
 }
 
-async function doPostEncounterCleanup(charcoal = false) {
+function doPostEncounterCleanup(charcoal = false) {
   // reset needed changes
   restorePartyAndHeldItems();
-  await offerCharmanderToJoin();
   queueEncounterMessage(`${namespace}:got_charmander`);
   if (charcoal) {
     giveLeadPokemonAttackTypeBoostItem();
   }
 }
 
-async function offerCharmanderToJoin() {
-  // add pokemon to party
-  const CharmanderData = new EnemyPokemon(getPokemonSpecies(Species.CHARMANDER), 5, TrainerSlot.NONE, false, true);
-  CharmanderData.moveset = [
+function createCharmanderToJoin() {
+  // create charmander
+  const charmanderData = new EnemyPokemon(getPokemonSpecies(Species.CHARMANDER), 5, TrainerSlot.NONE, false, true);
+  charmanderData.moveset = [
     new PokemonMove(Moves.FLAMETHROWER),
     new PokemonMove(Moves.SLASH),
     new PokemonMove(Moves.DRAGON_RAGE),
     new PokemonMove(Moves.ENDURE),
   ];
-  CharmanderData.passive = true;
-  await catchPokemon(CharmanderData, null, PokeballType.POKEBALL, false, true);
+  charmanderData.passive = true;
+  return [charmanderData];
 }
 
 function giveLeadPokemonAttackTypeBoostItem() {

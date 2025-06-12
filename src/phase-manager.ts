@@ -99,6 +99,7 @@ import { UnavailablePhase } from "#app/phases/unavailable-phase";
 import { UnlockPhase } from "#app/phases/unlock-phase";
 import { VictoryPhase } from "#app/phases/victory-phase";
 import { WeatherEffectPhase } from "#app/phases/weather-effect-phase";
+import { PokemonRewardPhase } from "#app/phases/pokemon-reward-phase";
 
 /**
  * Manager for phases used by battle scene.
@@ -169,6 +170,7 @@ const PHASES = Object.freeze({
   PartyHealPhase,
   PokemonAnimPhase,
   PokemonHealPhase,
+  PokemonRewardPhase,
   PokemonTransformPhase,
   PostGameOverPhase,
   PostSummonPhase,
